@@ -3,27 +3,27 @@
 require 'fileutils'
 require 'optparse'
 
-def result_path
-  pwd = options[:input_dir] || Dir.pwd
-  File.join Dir.pwd, 'winnowed', Time.now.to_i.to_s
-end
-
 def winnow options
-  FileUtils.mkdir_p result_path
   count = 0
-  Dir["*"].sort_by{ |file| File.mtime(file) }.each do |file|
-    if count == options[:skip]
-      count = 0
-      unless File.directory? file
-        FileUtils.cp file, File.join(result_path, File.basename(file))
-      end
-    else
-      count = count + 1
-    end
-  end
+  input_path = File.expand_path(options[:input_dir] || Dir.pwd)
+  output_path = File.join input_path, 'winnowed', Time.now.to_i.to_s
 
-  if options[:animate]
-    `cd #{result_path}; convert -delay #{options[:gif_delay]} -loop 0 *.#{options[:input_format]} #{options[:gif_filename]} `
+  FileUtils.mkdir_p output_path
+  Dir.chdir input_path do
+    Dir["*"].sort_by{ |file| File.mtime(file) }.each do |file|
+      if count == options[:skip]
+        count = 0
+        unless File.directory? file
+          FileUtils.cp file, File.join(output_path, File.basename(file))
+        end
+      else
+        count = count + 1
+      end
+    end
+
+    if options[:animate]
+      `cd #{output_path}; convert -delay #{options[:gif_delay]} -loop 0 *.#{options[:input_format]} #{options[:gif_filename]} `
+    end
   end
 end
 
@@ -38,8 +38,8 @@ options = {
 OptionParser.new do |opts|
   opts.banner = "Usage: winnow [options]"
 
-  opts.on("-i DIR", "--input DIR", String, "Input directory of images (default: current directory)") do |gif_filename|
-    options[:gif_filename] = gif_filename
+  opts.on("-i DIR", "--input DIR", String, "Input directory of images (default: current directory)") do |input_dir|
+    options[:input_dir] = input_dir
   end
 
   opts.on("-s N", "--skip N", Integer, "Number of images to skip (default: 5)") do |skip|
